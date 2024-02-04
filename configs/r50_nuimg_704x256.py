@@ -127,8 +127,10 @@ train_pipeline = [
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True, with_attr_label=False),
     dict(type='ObjectRangeFilter', point_cloud_range=point_cloud_range),
     dict(type='ObjectNameFilter', classes=class_names),
-    dict(type='RandomTransformImage', ida_aug_conf=ida_aug_conf, training=True),
-    dict(type='GlobalRotScaleTransImage', rot_range=[-0.3925, 0.3925], scale_ratio_range=[0.95, 1.05]),
+    # dict(type='RandomTransformImage', ida_aug_conf=ida_aug_conf, training=True),
+    dict(type='RandomTransformImage', ida_aug_conf=ida_aug_conf, training=False),
+    # dict(type='GlobalRotScaleTransImage', rot_range=[-0.3925, 0.3925], scale_ratio_range=[0.95, 1.05]),
+    dict(type='GlobalRotScaleTransImage', rot_range=[0, 0], scale_ratio_range=[0, 0]),
     dict(type='DefaultFormatBundle3D', class_names=class_names),
     dict(type='Collect3D', keys=['gt_bboxes_3d', 'gt_labels_3d', 'img'], meta_keys=(
         'filename', 'ori_shape', 'img_shape', 'pad_shape', 'lidar2img', 'img_timestamp'))
@@ -152,11 +154,13 @@ test_pipeline = [
 ]
 
 data = dict(
-    workers_per_gpu=8,
+    # workers_per_gpu=8,
+    workers_per_gpu=0,
     train=dict(
         type=dataset_type,
         data_root=dataset_root,
-        ann_file=dataset_root + 'nuscenes_infos_train_sweep.pkl',
+        # ann_file=dataset_root + 'nuscenes_infos_train_sweep.pkl',
+        ann_file=dataset_root + 'nuscenes_infos_val_mini_sweep.pkl',
         pipeline=train_pipeline,
         classes=class_names,
         modality=input_modality,

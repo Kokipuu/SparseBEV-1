@@ -147,6 +147,47 @@ def viz_bbox(nusc, bboxes, data_info, fig, gs):
         bbox.render(ax, view=np.eye(4), colors=(c, c, c))
 
 
+def compute_iou(boxA, boxB):
+    # 各BBoxの最小角と最大角を計算
+    xA_min = boxA["x"] - boxA["width"] / 2
+    yA_min = boxA["y"] - boxA["height"] / 2
+    zA_min = boxA["z"] - boxA["depth"] / 2
+    xA_max = boxA["x"] + boxA["width"] / 2
+    yA_max = boxA["y"] + boxA["height"] / 2
+    zA_max = boxA["z"] + boxA["depth"] / 2
+
+    xB_min = boxB["x"] - boxB["width"] / 2
+    yB_min = boxB["y"] - boxB["height"] / 2
+    zB_min = boxB["z"] - boxB["depth"] / 2
+    xB_max = boxB["x"] + boxB["width"] / 2
+    yB_max = boxB["y"] + boxB["height"] / 2
+    zB_max = boxB["z"] + boxB["depth"] / 2
+
+    # 重なりの各次元の長さを計算
+    overlap_x = max(0, min(xA_max, xB_max) - max(xA_min, xB_min))
+    overlap_y = max(0, min(yA_max, yB_max) - max(yA_min, yB_min))
+    overlap_z = max(0, min(zA_max, zB_max) - max(zA_min, zB_min))
+
+    # 重なりの体積
+    overlap_volume = overlap_x * overlap_y * overlap_z
+
+    # 各BBoxの体積
+    volumeA = boxA["width"] * boxA["height"] * boxA["depth"]
+    volumeB = boxB["width"] * boxB["height"] * boxB["depth"]
+
+    # IoUを計算
+    iou = overlap_volume / (volumeA + volumeB - overlap_volume) if (volumeA + volumeB - overlap_volume) != 0 else 0
+    return iou
+
+# テストケース
+boxA = {"x": 1, "y": 1, "z": 1, "width": 2, "height": 2, "depth": 2}
+boxB = {"x": 2, "y": 2, "z": 2, "width": 2, "height": 2, "depth": 2}
+
+iou = compute_iou(boxA, boxB)
+print(f"IoU: {iou}")
+
+
+
 def main():
     parser = argparse.ArgumentParser(description='Validate a detector')
     parser.add_argument('--config', required=True)
@@ -182,6 +223,17 @@ def main():
     set_random_seed(0, deterministic=True)
 
     logging.info('Loading validation set from %s' % cfgs.data.val.data_root)
+    world_size=1
+    train_dataset = build_dataset(cfgs.data.train)
+    train_loader = build_dataloader(
+        train_dataset,
+        samples_per_gpu=cfgs.batch_size // world_size,
+        workers_per_gpu=cfgs.data.workers_per_gpu,
+        num_gpus=world_size,
+        dist=world_size > 1,
+        shuffle=True,
+        seed=0,
+    )
     val_dataset = build_dataset(cfgs.data.val)
     val_loader = build_dataloader(
         val_dataset,
@@ -213,7 +265,7 @@ def main():
     else:
         nusc = NuScenes(version='v1.0-trainval', dataroot=cfgs.data.val.data_root, verbose=False)
 
-    for i, data in enumerate(val_loader):
+    for i, (data, data_train) in enumerate(zip(val_loader, train_loader)):
         model.eval()
 
         with torch.no_grad():
@@ -228,10 +280,19 @@ def main():
             lift_center=True,
         )
 
+        bboxes_gt = convert_to_nusc_box(
+            bboxes=data_train['gt_boxes_3d'].tensor.numpy(),
+            scores=results['scores_3d'].numpy(),
+            labels=data_train['gt_labels_3d'].numpy(),
+            score_threshold=args.score_threshold,
+            lift_center=True,
+        )
+
         fig = plt.figure(figsize=(15.5, 5))
         gs = GridSpec(2, 4, figure=fig)
 
         viz_bbox(nusc, bboxes_pred, val_dataset.data_infos[i], fig, gs)
+        viz2_bbox(nusc, bboxes_gt, train_dataset.data_infos[i], fig, gs)
 
         plt.tight_layout()
         plt.savefig('outputs/bbox_%04d.jpg' % i, dpi=200)
