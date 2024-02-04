@@ -179,12 +179,79 @@ def compute_iou(boxA, boxB):
     iou = overlap_volume / (volumeA + volumeB - overlap_volume) if (volumeA + volumeB - overlap_volume) != 0 else 0
     return iou
 
-# テストケース
-boxA = {"x": 1, "y": 1, "z": 1, "width": 2, "height": 2, "depth": 2}
-boxB = {"x": 2, "y": 2, "z": 2, "width": 2, "height": 2, "depth": 2}
+# # テストケース
+# boxA = {"x": 1, "y": 1, "z": 1, "width": 2, "height": 2, "depth": 2}
+# boxB = {"x": 2, "y": 2, "z": 2, "width": 2, "height": 2, "depth": 2}
 
-iou = compute_iou(boxA, boxB)
-print(f"IoU: {iou}")
+# iou = compute_iou(boxA, boxB)
+# print(f"IoU: {iou}")
+
+
+def compute_precision_recall(detections, ground_truths, iou_threshold=0.5):
+    """
+    detectionsとground_truthsのリストからPrecisionとRecallを計算します。
+    各要素は{"x": float, "y": float, "z": float, "width": float, "height": float, "depth": float}の形式です。
+    """
+    TP = 0
+    FP = 0
+    FN = len(ground_truths)
+
+    for det in detections:
+        matched = False
+        for gt in ground_truths:
+            iou = compute_iou(det, gt)
+            if iou >= iou_threshold:
+                matched = True
+                FN -= 1
+                break
+        if matched:
+            TP += 1
+        else:
+            FP += 1
+
+    precision = TP / (TP + FP) if (TP + FP) > 0 else 0
+    recall = TP / (TP + FN) if (TP + FN) > 0 else 0
+
+    return precision, recall
+
+def compute_ap(precisions, recalls):
+    """
+    PrecisionとRecallのリストからAPを計算します。
+    """
+    # Recall値を昇順にソートし、対応するPrecisionでAPを計算
+    recalls = sorted(recalls + [0, 1])  # 開始と終了を追加
+    precisions = [0] + precisions + [0]  # 開始と終了を追加
+
+    # PrecisionをRecallの関数として補間
+    for i in range(len(precisions) - 2, -1, -1):
+        precisions[i] = max(precisions[i], precisions[i + 1])
+
+    # APを計算
+    ap = sum((recalls[i + 1] - recalls[i]) * precisions[i + 1] for i in range(len(recalls) - 1))
+
+    return ap
+
+# # テストデータの例（検出結果とグラウンドトゥルース）
+# detections = [
+#     {"x": 1, "y": 1, "z": 1, "width": 2, "height": 2, "depth": 2},  # 例えば検出結果
+#     # 他の検出結果...
+# ]
+# ground_truths = [
+#     {"x": 2, "y": 2, "z": 2, "width": 2, "height": 2, "depth": 2},  # 例えばグラウンドトゥルース
+#     # 他のグラウンドトゥルース...
+# ]
+
+# # PrecisionとRecallを計算
+# precisions, recalls = [], []
+# for det in detections:
+#     precision, recall = compute_precision_recall([det], ground_truths)
+#     precisions.append(precision)
+#     recalls.append(recall)
+
+# # APを計算
+# ap = compute_ap(precisions, recalls)
+# print(f"AP: {ap}")
+
 
 
 
