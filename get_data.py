@@ -46,6 +46,46 @@ def save(hoge, fuga, piyo, file_path_iii):
                 # Write the organized data as a row in the CSV
                 file.write(','.join(str(item) for item in row_data) + '\n')
 
-    
 
+###############################
+    
+import numpy as np
+
+def calculate_column_averages(csv_folder):
+    # 初期化
+    column_sums = np.zeros(6)  # 6列分の合計値
+    num_rows = 0  # 総行数
+    
+    # 指定フォルダ内の全CSVファイルをリストアップ
+    csv_files = [f for f in os.listdir(csv_folder) if f.endswith('.csv')]
+    
+    # 各ファイルを読み込み、列の合計を計算
+    for file_name in csv_files:
+        file_path = os.path.join(csv_folder, file_name)
+        
+        with open(file_path, mode='r') as csv_file:
+            reader = csv.reader(csv_file)
+            next(reader)  # ヘッダーをスキップ
+            
+            for row in reader:
+                # 文字列のリストを浮動小数点数のnumpy配列に変換
+                row_data = np.array(row, dtype=np.float64)
+                column_sums += row_data
+                num_rows += 1
+    
+    # 各列の平均値を計算
+    column_averages = column_sums / num_rows
+    
+    return column_averages
+
+# CSVファイルが保存されているフォルダを指定
+csv_folder = 'csv'
+
+# 平均値を計算
+column_averages = calculate_column_averages(csv_folder)
+
+# 結果を出力
+columns = ['A', 'B', 'C', 'D', 'E', 'F']
+for column, average in zip(columns, column_averages):
+    print(f"{column}列の平均値: {average}")
 
