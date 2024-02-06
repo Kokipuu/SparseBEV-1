@@ -131,3 +131,27 @@ class RandomBlackout(object):
                 results['img'][i] = img
 
         return results
+
+
+
+#####################
+
+# load gt with test_pipeline    
+test_pipeline = [
+    dict(type='LoadMultiViewImageFromFiles', to_float32=False, color_type='color'),
+    dict(type='LoadMultiViewImageFromMultiSweeps', sweeps_num=num_frames - 1, test_mode=True),
+    # テストデータのアノテーション（ラベルデータ）を読み込む
+    dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True, with_attr_label=False),
+    dict(type='RandomTransformImage', ida_aug_conf=ida_aug_conf, training=False),
+    dict(
+        type='MultiScaleFlipAug3D',
+        img_scale=(1600, 900),
+        pts_scale_ratio=1,
+        flip=False,
+        transforms=[
+            dict(type='DefaultFormatBundle3D', class_names=class_names, with_label=True),
+            dict(type='Collect3D', keys=['img', 'gt_bboxes_3d', 'gt_labels_3d'], meta_keys=(
+                'filename', 'box_type_3d', 'ori_shape', 'img_shape', 'pad_shape',
+                'lidar2img', 'img_timestamp'))
+        ])
+]
